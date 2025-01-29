@@ -1,5 +1,6 @@
 import os
 import sys
+import pyperclip
 
 from openai import OpenAI
 from PyQt5.QtCore import Qt, QTimer
@@ -26,9 +27,12 @@ class ApiKeyApp(QWidget):
         super().__init__()
         self.setWindowTitle("OpenAI API Key and Settings")
         self.setGeometry(100, 100, 400, 250)
+        self.is_initialized = False
         self.api_key = None
         self.notify_answers = True
+        self.output_to_clipboard = True
 
+        self.skip_clipboard_change = False
         # GUI-Elemente
         self.label = QLabel("Enter your OpenAI API Key:")
         self.input = QLineEdit()
@@ -68,7 +72,7 @@ class ApiKeyApp(QWidget):
         self.setLayout(layout)
 
         # Event-Verknüpfungen
-        self.save_button.clicked.connect(self.save_api_key)
+        self.save_button.clicked.connect(self.save_settings)
 
         # Tray-Support
         self.tray_icon = QSystemTrayIcon(self)
@@ -94,8 +98,7 @@ class ApiKeyApp(QWidget):
 
         self.previous_text = ""
         self.clipboard = QApplication.clipboard()
-
-        self.clipboard.dataChanged.connect(self.on_clipboard_changed)
+        self.clipboard.dataChanged.connect(partial(self.on_clipboard_changed, clipboard=self.clipboard))
 
     def check_saved_key(self):
         if os.path.exists("api_key.txt"):
@@ -105,7 +108,7 @@ class ApiKeyApp(QWidget):
                     self.label.setText("A saved API Key was found.")
                     self.input.setText(self.api_key)
 
-    def save_api_key(self):
+    def save_settings(self):
         self.api_key = self.input.text()
         self.notify_answers = self.notification_checkbox.isChecked()
         self.output_to_clipboard = self.output_to_clipboard_checkbox.isChecked()
@@ -124,20 +127,50 @@ class ApiKeyApp(QWidget):
             )
 
             self.hide()
+            self.is_initialized = True
         else:
             self.label.setText("Please enter a valid API Key.")
             self.label.setStyleSheet("color: red;")
 
-    def on_clipboard_changed(self):
-        current_text = self.clipboard.text()
+    def on_clipboard_changed(self, clipboard):
+        print("Clipboard change event triggered.")
+        if not self.is_initialized:
+            print("App not initialized.")
+            self.skip_clipboard_change = True
+
+        if self.skip_clipboard_change:
+            print("Skipping clipboard change event.")
+            self.skip_clipboard_change = False
+            return
+
+
+        current_text = clipboard.text()
         if (
             current_text != self.previous_text
             and current_text.strip()
             and not current_text.startswith("Answer:")
         ):
-            print("processing clipboard text")
+            print("Clipboard content changed. Processing question.")
             self.previous_text = current_text
-            self.process_question(current_text)
+            answer = self.process_question(current_text)
+
+
+            self.last_answer.setText(answer)
+
+            if self.notify_answers:
+                self.tray_icon.showMessage(
+                  "Answer",  answer, QSystemTrayIcon.Information, 5000
+                )
+
+            if self.output_to_clipboard:
+                print("Outputting answer to clipboard.")
+                self.skip_clipboard_change = True
+
+                pyperclip.copy(answer)
+                # clipboard.setText(self.last_answer.copy())
+
+
+
 
     def process_question(self, text):
         if not os.environ.get("OPENAI_API_KEY"):
@@ -147,7 +180,7 @@ class ApiKeyApp(QWidget):
                 QSystemTrayIcon.Warning,
                 3000,
             )
-            return
+            return "No API Key set. Please restart the app and enter your key."
 
         try:
             # Anfrage an die OpenAI-API
@@ -170,23 +203,14 @@ class ApiKeyApp(QWidget):
 
             response = completion.choices[0].message
             answer = response.content
-            print("Answer", answer)
-
-            if self.notify_answers:
-                self.tray_icon.showMessage(
-                    "Answer:", answer, QSystemTrayIcon.Information, 5000
-                )
-
-            if self.output_to_clipboard:
-                self.clipboard.setText(f"Answer: {answer}")
-
-            self.last_answer.setText(answer)
-
+            print("Success")
+            return answer
 
         except Exception as e:
             self.tray_icon.showMessage(
                 "Error", f"An error occurred: {str(e)}", QSystemTrayIcon.Warning, 5000
             )
+            return "An error occurred during processing."
 
     def exit_application(self):
         self.tray_icon.hide()
