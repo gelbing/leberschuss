@@ -137,7 +137,7 @@ class ApiKeyApp(QWidget):
         tray_menu.addAction(last_answer_action)
 
         notify_action = QAction("Notify", self)
-        notify_action.triggered.connect(self.tray_clicked)
+        notify_action.triggered.connect(self.on_clipboard_changed)
         tray_menu.addAction(notify_action)
 
         quit_action = QAction("Quit", self)
@@ -153,12 +153,13 @@ class ApiKeyApp(QWidget):
 
         # Clipboard monitoring
         self.clipboard = QApplication.clipboard()
-        self.clipboard.dataChanged.connect(self.on_clipboard_changed)
+        # self.clipboard.dataChanged.connect()
 
         # Separate window for showing only the last answer
         self.last_answer_window = LastAnswerWindow()
 
     def tray_clicked(self):
+        self.on_clipboard_changed()
 
         self.tray_icon.showMessage(
             "",
