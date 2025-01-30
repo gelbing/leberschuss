@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leberschuss"
+version = "0.1.2"
+authors = [{ name = "vergelbung", email = "contact.paradize@gmail.com" }]
+description = "OpenAI Query Tool that stores can show the answers of copied text as a notification, gui, or to clipboard."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.7"
+keywords = ["openai", "exams", "hiddenquery"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["PyQt5", "pyperclip", "openai"]
+
+# If you want to create console scripts (entry points):
+[project.scripts]
+leberschuss = "leberschuss.main:main"
