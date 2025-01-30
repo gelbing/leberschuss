@@ -1,0 +1,55 @@
+name: Publish Python Package
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10]  # Specify the Python versions you support
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build the package
+        run: python -m build
+
+      - name: Publish to PyPI or TestPyPI
+        env:
+          # Determine which token and repository to use based on the branch
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ github.ref == 'refs/heads/main' && secrets.PYPI_TOKEN || secrets.TEST_PYPI_TOKEN }}
+        run: |
+          if [ "${GITHUB_REF}" == "refs/heads/main" ]; then
+            echo "Publishing to PyPI..."
+            twine upload --repository pypi dist/*
+          elif [ "${GITHUB_REF}" == "refs/heads/dev" ]; then
+            echo "Publishing to TestPyPI..."
+            twine upload --repository testpypi dist/*
+          else
+            echo "Not publishing, branch is not main or dev."
+          fi
+
+      - name: Verify upload (optional)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          pip install --upgrade pip
+          pip install leberschuss
+          # Add additional verification steps as needed
