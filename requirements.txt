@@ -1,0 +1,3 @@
+openai
+pyqt5
+pyperclip
