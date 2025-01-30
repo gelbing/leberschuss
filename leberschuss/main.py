@@ -132,9 +132,13 @@ class ApiKeyApp(QWidget):
         settings_action.triggered.connect(self.show)
         tray_menu.addAction(settings_action)
 
-        last_answer_action = QAction("Show Last Answer Only", self)
+        last_answer_action = QAction("Last Answer Window", self)
         last_answer_action.triggered.connect(self.show_last_answer_only)
         tray_menu.addAction(last_answer_action)
+
+        notify_action = QAction("Notify", self)
+        notify_action.triggered.connect(self.tray_clicked)
+        tray_menu.addAction(notify_action)
 
         quit_action = QAction("Quit", self)
         quit_action.triggered.connect(self.exit_application)
