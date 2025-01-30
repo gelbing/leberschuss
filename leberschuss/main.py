@@ -1,9 +1,8 @@
-
 import os
 import sys
-import pyperclip
-
 from functools import partial
+
+import pyperclip
 from openai import OpenAI
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QTextOption
@@ -11,24 +10,24 @@ from PyQt5.QtWidgets import (
     QAction,
     QApplication,
     QCheckBox,
+    QDialog,
     QLabel,
-    QStyle,
     QLineEdit,
     QMenu,
+    QPlainTextEdit,
     QPushButton,
+    QStyle,
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
-    QPlainTextEdit,
-    QDialog,
 )
-
 
 
 class LastAnswerWindow(QWidget):
     """
     A simple, separate window that shows only the last answer.
     """
+
     def __init__(self, parent=None):
         # Pass None to create a top-level window instead of a child widget
         super().__init__(None)
@@ -63,7 +62,7 @@ class ApiKeyApp(QWidget):
         self.is_initialized = False
         self.api_key = None
         self.notify_answers = True
-        self.output_to_clipboard = True
+        self.output_to_clipboard = False
         self.skip_clipboard_change = False
         self.previous_text = ""
 
@@ -82,10 +81,12 @@ class ApiKeyApp(QWidget):
         # Instead of placeholder, set an initial text:
         self.openai_prompt.setPlainText(
             "You are assisting with a psychology exam at a German university.\n"
-            "If a question is multiple-choice, provide only the correct answers (e.g., 'A + B' or '1 + 4') "
-            "without any additional explanation.\n"
-            "For non-multiple-choice questions, respond with concise and accurate text answers.\n"
-            "Focus on clarity and brevity in all responses."
+            "The questions will all be multiple choice and where copied from tables on the exam paper.\n"
+            "You should not provide any additional information.\n"
+            "You should not repeat the options.\n"
+            "Only return for each option whether it is correct or incorrect.\n"
+            "you should return your answer as one string. e.g. 'RICHTIG FALSCH FALSCH FALSCH'\n should answer a multiple choice question with 4 options.\n"
+            "Please use emojis instead of the words 'RICHTIG' and 'FALSCH'.\n"
         )
         # Decide if you want line wrapping for the prompt as well:
         self.openai_prompt.setLineWrapMode(QPlainTextEdit.WidgetWidth)
@@ -139,20 +140,28 @@ class ApiKeyApp(QWidget):
         quit_action.triggered.connect(self.exit_application)
         tray_menu.addAction(quit_action)
 
-        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self.tray_clicked)
 
+        self.tray_icon.setContextMenu(tray_menu)
         # Check saved key
         self.check_saved_key()
         os.environ["OPENAI_API_KEY"] = self.api_key if self.api_key else ""
 
         # Clipboard monitoring
         self.clipboard = QApplication.clipboard()
-        self.clipboard.dataChanged.connect(
-            self.on_clipboard_changed
-        )
+        self.clipboard.dataChanged.connect(self.on_clipboard_changed)
 
         # Separate window for showing only the last answer
         self.last_answer_window = LastAnswerWindow()
+
+    def tray_clicked(self):
+
+        self.tray_icon.showMessage(
+            "",
+            self.last_answer.toPlainText(),
+            QSystemTrayIcon.Information,
+            3000,
+        )
 
     def check_saved_key(self):
         if os.path.exists("api_key.txt"):
@@ -195,10 +204,7 @@ class ApiKeyApp(QWidget):
 
         current_text = self.clipboard.text()
         # Only process if it changed and is not empty and doesn’t start with "Answer:"
-        if (
-            current_text != self.previous_text
-            and current_text.strip()
-        ):
+        if current_text.strip():
             self.previous_text = current_text
             answer = self.process_question(current_text)
             self.last_answer.setPlainText(answer)
@@ -266,11 +272,13 @@ class ApiKeyApp(QWidget):
         self.tray_icon.hide()
         QApplication.instance().quit()
 
+
 def main():
     app = QApplication(sys.argv)
     main_window = ApiKeyApp()
     main_window.show()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()
