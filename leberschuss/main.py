@@ -113,7 +113,7 @@ class ApiKeyApp(QWidget):
         self.notification_checkbox.setChecked(self.notify_answers)
 
         self.output_to_clipboard_checkbox = QCheckBox("Output answers to clipboard")
-        self.output_to_clipboard_checkbox.setChecked(True)
+        self.output_to_clipboard_checkbox.setChecked(False)
 
         # Layout
         layout = QVBoxLayout()
@@ -256,6 +256,7 @@ class ApiKeyApp(QWidget):
             logger.debug("OpenAI query complete")
         else:
             logger.debug("No text to process in clipboard")
+
 
 
     def _process_openapi_query(self, text):
