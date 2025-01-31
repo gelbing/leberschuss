@@ -21,6 +21,10 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class LastAnswerWindow(QWidget):
@@ -29,6 +33,7 @@ class LastAnswerWindow(QWidget):
     """
 
     def __init__(self, parent=None):
+        logger.debug("Creating LastAnswerWindow")
         # Pass None to create a top-level window instead of a child widget
         super().__init__(None)
         self.setWindowTitle("272")
@@ -46,13 +51,17 @@ class LastAnswerWindow(QWidget):
 
         # Optional: Set a minimum size
         self.setMinimumSize(400, 300)
+        logger.debug("LastAnswerWindow created")
 
     def set_answer_text(self, text: str):
+        logger.debug(f"Setting answer text: {text}")
         self.answer_view.setPlainText(text)
+        logger.debug("Answer text set")
 
 
 class ApiKeyApp(QWidget):
     def __init__(self):
+        logger.debug("Creating ApiKeyApp")
         super().__init__()
 
         self.setWindowTitle("OpenAI API Key and Settings")
@@ -137,14 +146,12 @@ class ApiKeyApp(QWidget):
         tray_menu.addAction(last_answer_action)
 
         notify_action = QAction("Notify", self)
-        notify_action.triggered.connect(self.on_clipboard_changed)
+        notify_action.triggered.connect(self.show_notification)
         tray_menu.addAction(notify_action)
 
         quit_action = QAction("Quit", self)
         quit_action.triggered.connect(self.exit_application)
         tray_menu.addAction(quit_action)
-
-        self.tray_icon.activated.connect(self.tray_clicked)
 
         self.tray_icon.setContextMenu(tray_menu)
         # Check saved key
@@ -153,30 +160,38 @@ class ApiKeyApp(QWidget):
 
         # Clipboard monitoring
         self.clipboard = QApplication.clipboard()
-        # self.clipboard.dataChanged.connect()
+        self.clipboard.dataChanged.connect(self.parse_and_run_clipboard_query)
 
         # Separate window for showing only the last answer
         self.last_answer_window = LastAnswerWindow()
+        logger.debug("ApiKeyApp created")
 
-    def tray_clicked(self):
-        self.on_clipboard_changed()
-
+    def show_notification(self):
+        logger.debug("Showing notification")
         self.tray_icon.showMessage(
             "",
             self.last_answer.toPlainText(),
             QSystemTrayIcon.Information,
             3000,
         )
+        logger.debug("Notification shown")
 
     def check_saved_key(self):
+        logger.debug("Checking saved key")
         if os.path.exists("api_key.txt"):
+            logger.debug("Saved key found")
             with open("api_key.txt", "r") as file:
                 self.api_key = file.read().strip()
                 if self.api_key:
                     self.label.setText("A saved API Key was found.")
                     self.input.setText(self.api_key)
+        else:
+            logger.debug("No saved key found")
+        logger.debug("Saved key check complete")
+
 
     def save_settings(self):
+        logger.debug("Saving settings")
         self.api_key = self.input.text().strip()
         self.notify_answers = self.notification_checkbox.isChecked()
         self.output_to_clipboard = self.output_to_clipboard_checkbox.isChecked()
@@ -198,33 +213,50 @@ class ApiKeyApp(QWidget):
         else:
             self.label.setText("Please enter a valid API Key.")
             self.label.setStyleSheet("color: red;")
+        logger.debug("Settings saved")
 
-    def on_clipboard_changed(self):
+    def copy_answer_to_clipboard(self):
+        logger.debug("Copying answer to clipboard")
+        self.skip_clipboard_change = True
+        pyperclip.copy(self.last_answer.toPlainText())
+        logger.debug("Answer copied to clipboard")
+
+    def parse_and_run_clipboard_query(self):
+        logger.debug("Running OpenAI query")
+
         if not self.is_initialized:
-            self.skip_clipboard_change = True
+            logger.debug("App not initialized")
+            return
 
         if self.skip_clipboard_change:
+            logger.debug("Skipping clipboard change")
             self.skip_clipboard_change = False
             return
 
-        current_text = self.clipboard.text()
+        current_text = pyperclip.paste()
+
         # Only process if it changed and is not empty and doesn’t start with "Answer:"
         if current_text.strip():
+            if current_text == self.previous_text:
+                logger.debug("Text unchanged. Processing anyway.")
+
             self.previous_text = current_text
-            answer = self.process_question(current_text)
+            answer = self._process_openapi_query(current_text)
             self.last_answer.setPlainText(answer)
             self.last_answer_window.set_answer_text(answer)
 
             if self.notify_answers:
-                self.tray_icon.showMessage(
-                    "Answer", answer, QSystemTrayIcon.Information, 5000
-                )
+                self.show_notification()
 
             if self.output_to_clipboard:
-                self.skip_clipboard_change = True
-                pyperclip.copy(answer)
+                self.copy_answer_to_clipboard()
 
-    def process_question(self, text):
+            logger.debug("OpenAI query complete")
+        else:
+            logger.debug("No text to process in clipboard")
+
+
+    def _process_openapi_query(self, text):
         if not os.environ.get("OPENAI_API_KEY"):
             self.tray_icon.showMessage(
                 "Error",
@@ -252,6 +284,8 @@ class ApiKeyApp(QWidget):
             )
             response = completion.choices[0].message
             answer = response.content
+            logger.debug(f"OpenAI response: {answer}")
+
             return answer
 
         except Exception as e:
@@ -260,20 +294,24 @@ class ApiKeyApp(QWidget):
                 "Error", error_msg, QSystemTrayIcon.Warning, 5000
             )
             return "An error occurred during processing."
+        looger.debug("OpenAI query processed")
 
     def show_last_answer_only(self):
         """
         Hides the main window and shows a separate window
         that displays only the last answer.
         """
+        logger.debug("Showing last answer window")
         # Update text in the last answer window
         self.last_answer_window.set_answer_text(self.last_answer.toPlainText())
 
         # Hide main window. You can show it again from the tray "Settings" action.
         self.hide()
         self.last_answer_window.show()
+        logger.debug("Last answer window shown")
 
     def exit_application(self):
+        logger.debug("Exiting application")
         self.tray_icon.hide()
         QApplication.instance().quit()
 
