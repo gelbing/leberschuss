@@ -146,7 +146,7 @@ class ApiKeyApp(QWidget):
         tray_menu.addAction(last_answer_action)
 
         notify_action = QAction("Notify", self)
-        notify_action.triggered.connect(self.show_notification)
+        notify_action.triggered.connect(self.parse_and_run_clipboard_query)
         tray_menu.addAction(notify_action)
 
         quit_action = QAction("Quit", self)
@@ -189,6 +189,8 @@ class ApiKeyApp(QWidget):
             logger.debug("No saved key found")
         logger.debug("Saved key check complete")
 
+    def _manual_run(self):
+        self.parse_and_run_clipboard_query()
 
     def save_settings(self):
         logger.debug("Saving settings")
@@ -234,7 +236,7 @@ class ApiKeyApp(QWidget):
             return
 
         current_text = pyperclip.paste()
-
+        logger.debug(f"Clipboard text: {current_text}")
         # Only process if it changed and is not empty and doesn’t start with "Answer:"
         if current_text.strip():
             if current_text == self.previous_text:

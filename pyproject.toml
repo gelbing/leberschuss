@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "leberschuss"
-version = "0.1.7"
+version = "0.1.8"
 authors = [{ name = "vergelbung", email = "contact.paradize@gmail.com" }]
 description = "OpenAI Query Tool that stores can show the answers of copied text as a notification, gui, or to clipboard."
 readme = "README.md"
