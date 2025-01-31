@@ -160,7 +160,7 @@ class ApiKeyApp(QWidget):
 
         # Clipboard monitoring
         self.clipboard = QApplication.clipboard()
-        self.clipboard.dataChanged.connect(self.parse_and_run_clipboard_query)
+        # self.clipboard.dataChanged.connect(self.parse_and_run_clipboard_query)
 
         # Separate window for showing only the last answer
         self.last_answer_window = LastAnswerWindow()
